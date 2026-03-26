@@ -173,10 +173,98 @@ function transformLevel2(m) {
     }
     return m;
 }
+function transformLevel3(m) {
+    // 关卡3：增加更多砖墙，形成迷宫结构
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            if (m[r][c] === 0 && (r + c) % 5 === 0) m[r][c] = 1;
+            if (m[r][c] === 1 && (r * c) % 7 === 0) m[r][c] = 2;
+        }
+    }
+    return m;
+}
+function transformLevel4(m) {
+    // 关卡4：创建对称的防御工事
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            if (Math.abs(r - ROWS/2) < 3 && Math.abs(c - COLS/2) < 3 && m[r][c] === 0) m[r][c] = 1;
+            if ((r === 5 || r === 10) && c % 3 === 0) m[r][c] = 2;
+        }
+    }
+    return m;
+}
+function transformLevel5(m) {
+    // 关卡5：增加钢铁墙保护基地
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            if (m[r][c] === 9) {
+                // 在基地周围创建钢铁防御圈
+                for (let rr = r-2; rr <= r+2; rr++) {
+                    for (let cc = c-2; cc <= c+2; cc++) {
+                        if (rr >= 0 && rr < ROWS && cc >= 0 && cc < COLS && 
+                            (Math.abs(rr-r) === 2 || Math.abs(cc-c) === 2) && m[rr][cc] === 0) {
+                            m[rr][cc] = 2;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return m;
+}
+function transformLevel6(m) {
+    // 关卡6：创建复杂的迷宫结构
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            if (r % 3 === 0 && c % 2 === 0 && m[r][c] === 0) m[r][c] = 1;
+            if ((r + c) % 4 === 0 && m[r][c] === 1) m[r][c] = 2;
+        }
+    }
+    return m;
+}
+function transformLevel7(m) {
+    // 关卡7：增加更多钢铁墙，减少通路
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            if (m[r][c] === 0 && (r % 2 === 0 || c % 2 === 0)) m[r][c] = 1;
+            if (m[r][c] === 1 && (r + c) % 3 === 0) m[r][c] = 2;
+        }
+    }
+    return m;
+}
+function transformLevel8(m) {
+    // 关卡8：创建密集的防御网络
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            if (m[r][c] === 0 && (r * c) % 6 === 0) m[r][c] = 2;
+            if (m[r][c] === 1 && (r + c) % 5 === 0) m[r][c] = 2;
+        }
+    }
+    return m;
+}
+function transformLevel9(m) {
+    // 关卡9：最终关卡，极其复杂的迷宫
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            if (m[r][c] === 0 && (r % 2 === 0 || c % 2 === 0)) m[r][c] = 2;
+            if (m[r][c] === 1 && (r + c) % 4 === 0) m[r][c] = 2;
+            // 在边缘区域增加额外障碍
+            if ((r < 3 || r > ROWS-4 || c < 3 || c > COLS-4) && m[r][c] === 0) m[r][c] = 1;
+        }
+    }
+    return m;
+}
 function getLevelMap(i) {
     if (i === 0) return deepClone(baseMap);
     if (i === 1) return transformLevel1(deepClone(baseMap));
-    return transformLevel2(deepClone(baseMap));
+    if (i === 2) return transformLevel2(deepClone(baseMap));
+    if (i === 3) return transformLevel3(deepClone(baseMap));
+    if (i === 4) return transformLevel4(deepClone(baseMap));
+    if (i === 5) return transformLevel5(deepClone(baseMap));
+    if (i === 6) return transformLevel6(deepClone(baseMap));
+    if (i === 7) return transformLevel7(deepClone(baseMap));
+    if (i === 8) return transformLevel8(deepClone(baseMap));
+    return transformLevel9(deepClone(baseMap));
 }
 function encloseBaseWithBricks(m) {
     let base = null;
@@ -349,15 +437,33 @@ function findSafePlayerStart() {
     return { x: 210, y: 540 };
 }
 function spawnEnemies(i) {
-    const count = 3 + i;
+    // 难度递增：敌人数量随关卡增加
+    const baseCount = 3;
+    const count = baseCount + Math.min(i, 7); // 最多10个敌人
+    
     const spawns = pickSpawnTiles(count);
     const list = [];
+    
     for (let s of spawns) {
         const x = s.c * TILE_SIZE + 2;
         const y = s.r * TILE_SIZE + 2;
         const en = new Tank(x, y, "#F44336", "enemy");
-        en.aiMode = "patrol";
-        en.aiNext = Date.now() + 1000 + Math.random() * 1500;
+        
+        // 难度递增：敌人速度随关卡提升
+        en.speed = 1.0 + (i * 0.15); // 关卡越高，速度越快
+        
+        // 难度递增：AI行为随关卡变化
+        if (i < 3) {
+            en.aiMode = "patrol"; // 关卡1-3：巡逻模式
+        } else if (i < 6) {
+            en.aiMode = Math.random() > 0.3 ? "chase_player" : "patrol"; // 关卡4-6：混合模式
+        } else {
+            en.aiMode = Math.random() > 0.5 ? "chase_base" : "chase_player"; // 关卡7-10：攻击性更强
+        }
+        
+        // 难度递增：AI决策频率提升
+        en.aiNext = Date.now() + 800 + Math.random() * (1200 - i * 100);
+        
         en.stuckFrames = 0;
         en.prevX = en.x;
         en.prevY = en.y;
@@ -617,7 +723,7 @@ function drawEndScreen() {
 }
 
 function advanceLevel() {
-    if (currentLevel < 2) {
+    if (currentLevel < 9) {
         loadLevel(currentLevel + 1);
     } else {
         endGame("恭喜完成所有关卡！", true);
@@ -664,7 +770,6 @@ function playBeep(freq, duration, gainVal) {
 }
 function playShot() { playBeep(600, 0.06, 0.25); }
 function playExplosion() { playBeep(90, 0.3, 0.3); }
-function playVictory() { playBeep(880, 0.18, 0.22); setTimeout(() => playBeep(1320, 0.25, 0.22), 200); }
 
 function playMusic() {
     if (!audioCtx) return;
